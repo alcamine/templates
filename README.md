@@ -1,2 +1,2 @@
 # templates
-Voice agent templates to get you started. 
+Voice agent templates to get you started.
