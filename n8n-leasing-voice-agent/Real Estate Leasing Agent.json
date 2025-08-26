@@ -1,0 +1,677 @@
+{
+  "name": "Real Estate Leasing Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3b654f5e-91c2-4267-b0d3-1a43b429bb05",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-128, 0],
+      "id": "d1249314-d30a-4378-9882-1c6dd91b1165",
+      "name": "Webhook",
+      "webhookId": "3b654f5e-91c2-4267-b0d3-1a43b429bb05"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d8d14ec8-39ac-4a49-87d0-fd59cd49281c",
+              "leftValue": "={{ $json.body.type }}",
+              "rightValue": "session.completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "328cf53d-6d16-40f9-8816-e06f11d6e03b",
+              "leftValue": "={{ $json.body.properties.agent.id }}",
+              "rightValue": "=zr6mr2e6omfaqe6yrxm7k7jq",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [128, 0],
+      "id": "c4bbf0e3-9e2e-47ab-b7dc-5557361fedb7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract structured JSON from these messages:\n\n{{ JSON.stringify($json.body.properties.messages) }}\n\nContext:\n- Input is a stringified JSON array called \"messages\".\n- Each item has content.role and content.content.\n- Only use caller (\"user\"/\"customer\") content. Ignore assistant/system/tool text.\n\nReturn ONE JSON object in this schema (output valid JSON only, no extra keys or text):\n\n{\n  \"caller_name\": string|null,\n  \"notes\": string|null\n}\n\nRules:\n- caller_name:\n - Extract only if the caller states their own name (e.g., “My name is Sarah”, “This is Mike”).\n  - If the caller does NOT state a name, output the EXACT string: \"No Name Given\".\n  - Do NOT infer from email/phone. Do NOT use placeholders like “John Doe”, “Unknown”, etc.\n  - If multiple names appear, choose the most recent explicit self‑intro. Ignore third‑party names.\n- notes:\n  - Write a single short paragraph summarizing why they called.\n  - Include key details (property, unit type, move-in timing, pets, parking, etc.) if mentioned.\n  - Keep it under 300 characters. No bullets, no line breaks, no system text. ",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [496, -128],
+      "id": "ceb47728-292f-416e-99a3-00d126f1d77e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [496, 32],
+      "id": "7fe6f9da-979a-4d4c-bf29-d24a518b430c",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "HgQdmtk6aAvqlu0u",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"caller_name\": \"Pam Beesly\",\n  \"notes\": \"Interested in a 1-bedroom in Scranton for next month; asked about pet policy and parking.\"\n}\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [624, 96],
+      "id": "46ba96ad-91a1-47d8-aa11-c03a22eea6c4",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [592, 304],
+      "id": "0bde529a-4dd2-42e0-97fb-bee4371eaaf0",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "HgQdmtk6aAvqlu0u",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "person",
+        "name": "={{ $json.output.caller_name }}",
+        "additionalFields": {
+          "phone": [
+            "={{ $('Webhook').item.json.body.properties.person.phone }}"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.pipedrive",
+      "typeVersion": 1,
+      "position": [1024, -128],
+      "id": "b7ee0d0e-bf15-4617-9d89-6460717b8dd4",
+      "name": "Create a person",
+      "credentials": {
+        "pipedriveApi": {
+          "id": "1S6HPXNuDFMa3WCp",
+          "name": "Pipedrive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "note",
+        "content": "={{ $('AI Agent').item.json.output.notes }}",
+        "additionalFields": {
+          "person_id": "={{ $json.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.pipedrive",
+      "typeVersion": 1,
+      "position": [1216, -128],
+      "id": "5ba0878b-b13e-496e-9f3e-d5f53c7478f8",
+      "name": "Create a note",
+      "credentials": {
+        "pipedriveApi": {
+          "id": "1S6HPXNuDFMa3WCp",
+          "name": "Pipedrive account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "alcamine.app.n8n.cloud",
+            "user-agent": "node",
+            "content-length": "10241",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "*",
+            "alcamine-signature": "t=1755674887515,v1=b170fb31134ddd93c79253809811995e51db4373bb810caa79d54231520d3a67",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "18.205.75.212",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "US",
+            "cf-ray": "97202d87f64db06c-IAD",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "sec-fetch-mode": "cors",
+            "x-amzn-trace-id": "Root=1-68a57942-eb9879c0158ac38eb6de102f;Parent=54a250615ef9b53e;Sampled=1",
+            "x-forwarded-for": "18.205.75.212, 172.70.43.158",
+            "x-forwarded-host": "alcamine.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-2-ddc688d69-6987q",
+            "x-is-trusted": "yes",
+            "x-real-ip": "18.205.75.212"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "type": "session.completed",
+            "metadata": {
+              "idempotencyKey": "pliptjpi8uwscjqjd837wa4m"
+            },
+            "properties": {
+              "id": "dh9lhzailqu5ynpiiik707pj",
+              "name": "+12672883315",
+              "type": "INBOUND_CALL",
+              "agent": {
+                "id": "zr6mr2e6omfaqe6yrxm7k7jq",
+                "name": "Leasing Agent",
+                "slug": "leasing-agent",
+                "status": "PUBLISHED",
+                "version": {
+                  "id": "kexeocvkw1p4koqjls6332fn",
+                  "config": {
+                    "llm": {
+                      "model": "GPT_4_1",
+                      "provider": "OPENAI"
+                    },
+                    "stt": {
+                      "model": "NOVA_3",
+                      "provider": "DEEPGRAM"
+                    },
+                    "tts": {
+                      "model": "SONIC_2",
+                      "voiceId": "a38e4e85-e815-43ab-acf1-907c4688dd6c",
+                      "provider": "CARTESIA"
+                    }
+                  },
+                  "length": "TEN_MINUTES",
+                  "agentId": "zr6mr2e6omfaqe6yrxm7k7jq",
+                  "themeId": "yxb1njg3e4yvqhwxaic7epui",
+                  "version": 9,
+                  "followUp": false,
+                  "createdAt": "2025-08-20T06:47:49.045Z",
+                  "createdBy": "wkmnc1gh7qafaea1arinat3c",
+                  "inputMode": ["WEB_VOICE", "PHONE", "PHONE"],
+                  "languages": ["en"],
+                  "updatedAt": "2025-08-20T06:47:49.045Z",
+                  "updatedBy": "wkmnc1gh7qafaea1arinat3c",
+                  "agentFlowId": null,
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "systemPrompt": "",
+                  "incentiveType": "NONE",
+                  "authentication": "NONE",
+                  "incentiveAmount": null,
+                  "knowledgeBaseId": "xlkc3bxitijxp1s3dw1ud97b",
+                  "maxParticipants": null,
+                  "sourceAgentVersionId": null,
+                  "incentiveCurrencyCode": null
+                },
+                "createdAt": "2025-08-20T00:11:07.475Z",
+                "createdBy": "wkmnc1gh7qafaea1arinat3c",
+                "updatedAt": "2025-08-20T07:28:08.771Z",
+                "updatedBy": "wkmnc1gh7qafaea1arinat3c",
+                "archivedAt": null,
+                "archivedBy": null,
+                "completedAt": null,
+                "completedBy": null,
+                "description": "When someone calls a leasing office and no one answers, the voice agent picks up right away. It can answer common questions from the knowledge base such as pets, parking, or office hours, or if the caller is interested in a unit it gathers key details like name, number, property, unit type, and move-in timing, then passes it to the leasing team for follow-up.",
+                "publishedAt": "2025-08-20T07:28:08.769Z",
+                "publishedBy": "wkmnc1gh7qafaea1arinat3c",
+                "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                "sourceTemplateId": null,
+                "publishedVersionId": "smr26ay62y0h2r16i9o2i2j6"
+              },
+              "isDemo": false,
+              "person": {
+                "id": "e9c4dp9pudvvzhqz2rqvz842",
+                "email": null,
+                "phone": "+12672883315",
+                "mergedAt": null,
+                "mergedBy": null,
+                "createdAt": "2025-07-15T15:19:22.725Z",
+                "deletedAt": null,
+                "mergeMeta": {},
+                "updatedAt": "2025-08-20T07:26:46.407Z",
+                "lastSeenAt": "2025-08-20T07:26:46.407Z",
+                "properties": {
+                  "callerName": ""
+                },
+                "firstSeenAt": "2025-07-15T15:19:22.715Z",
+                "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                "identifiedAt": "2025-07-15T15:19:22.715Z",
+                "rootPersonId": "e9c4dp9pudvvzhqz2rqvz842"
+              },
+              "status": "COMPLETED",
+              "agentId": "zr6mr2e6omfaqe6yrxm7k7jq",
+              "billing": {
+                "id": "owods8pwwo1u23rg2mb58wll",
+                "amount": -1500,
+                "reason": "VOICE_USAGE",
+                "agentId": "zr6mr2e6omfaqe6yrxm7k7jq",
+                "createdAt": "2025-08-20T07:28:33.540Z",
+                "createdBy": null,
+                "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                "updatedAt": "2025-08-20T07:28:33.540Z",
+                "updatedBy": null,
+                "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                "reasonDetails": "1.50m (90s) → 1,500 credits",
+                "idempotencyKey": null,
+                "redemptionCodeId": null
+              },
+              "endedAt": "2025-08-20T07:28:33.486Z",
+              "messages": [
+                {
+                  "id": "gqw5eitbd6wapjfyww3xnh0c",
+                  "content": {
+                    "role": "assistant",
+                    "content": "Hi, thanks for calling Dunder Mifflin Realtors. I’m the virtual receptionist. I can help with quick questions, or if you’re interested in a unit, I can take some details for our leasing team. What can I help you with today?"
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:27:03.400Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:27:03.400Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4194
+                },
+                {
+                  "id": "h2luip1zdr666en0ql6r3n59",
+                  "content": {
+                    "role": "user",
+                    "content": [
+                      {
+                        "text": "Yeah. Uh, can you tell me what available units and locations you have?",
+                        "type": "text"
+                      }
+                    ]
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:27:08.658Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:27:08.658Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4195
+                },
+                {
+                  "id": "mwmwn81j5w6voo4ooytfq4zd",
+                  "content": {
+                    "role": "assistant",
+                    "content": "Thanks for your question. I can have our leasing team follow up with the latest availability and locations. Can I get your name and the best number to reach you?"
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:27:17.570Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:27:17.570Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4196
+                },
+                {
+                  "id": "pxic0y0v24owhk4s8hcqliw7",
+                  "content": {
+                    "role": "user",
+                    "content": [
+                      {
+                        "text": "Sure. My name is Johnny, and this is the best number to reach me.",
+                        "type": "text"
+                      }
+                    ]
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:27:23.057Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:27:23.057Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4197
+                },
+                {
+                  "id": "wtqumvmz70kae3dk7os4re7s",
+                  "content": {
+                    "role": "assistant",
+                    "content": "Thank you, Johnny. Just to confirm, are you interested in a specific property or neighborhood, or would you like information on all available units?"
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:27:31.274Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:27:31.274Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4198
+                },
+                {
+                  "id": "is0jsvmelznc1twip6fc303a",
+                  "content": {
+                    "role": "user",
+                    "content": [
+                      {
+                        "text": "Yeah. I wanna know about all available units Actually, it's the paper mill apartment",
+                        "type": "text"
+                      }
+                    ]
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:27:41.455Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:27:41.455Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4199
+                },
+                {
+                  "id": "vmbgrcgey2hvdzw31i2glsxt",
+                  "content": {
+                    "role": "user",
+                    "content": [
+                      {
+                        "text": "available?",
+                        "type": "text"
+                      }
+                    ]
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:27:42.454Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:27:42.454Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4200
+                },
+                {
+                  "id": "msew6y0dfw33hqmarykslba9",
+                  "content": {
+                    "role": "assistant",
+                    "content": "Thanks, Johnny. At Paper Mill Apartments, there are currently only 2-bedroom units available. Pets are not allowed at this property. Parking is reserved garage only for an additional monthly fee. Would you like to continue with more details or schedule a follow-up from our leasing team? When are you hoping to move in?"
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:28:01.847Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:28:01.848Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4201
+                },
+                {
+                  "id": "gz4dnw8kejy3xqkjn7mvqby1",
+                  "content": {
+                    "role": "user",
+                    "content": [
+                      {
+                        "text": "I yeah, I think this is good enough.",
+                        "type": "text"
+                      }
+                    ]
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:28:11.372Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:28:11.372Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4202
+                },
+                {
+                  "id": "kbfqyxqdcbjq5tqdnsvuy04n",
+                  "content": {
+                    "role": "user",
+                    "content": [
+                      {
+                        "text": "Can I can call back?",
+                        "type": "text"
+                      }
+                    ]
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:28:13.023Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:28:13.023Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4203
+                },
+                {
+                  "id": "r8kb04qtugijoo19abtrm6hv",
+                  "content": {
+                    "role": "assistant",
+                    "content": "Absolutely, you can call back anytime if you have more questions or want to check availability again. Our leasing team is happy to help when you’re ready. Thanks for calling Dunder Mifflin Realtors."
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:28:23.662Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:28:23.662Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4204
+                },
+                {
+                  "id": "ao53bwb6iudalz3yqny53keh",
+                  "content": {
+                    "role": "user",
+                    "content": [
+                      {
+                        "text": "Thank you.",
+                        "type": "text"
+                      }
+                    ]
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:28:27.357Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:28:27.357Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4205
+                },
+                {
+                  "id": "zagtde87b8i9y8ngog65cqee",
+                  "content": {
+                    "role": "assistant",
+                    "content": "You’re welcome! Have a great day. Goodbye!"
+                  },
+                  "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                  "createdAt": "2025-08-20T07:28:33.447Z",
+                  "sessionId": "dh9lhzailqu5ynpiiik707pj",
+                  "updatedAt": "2025-08-20T07:28:33.447Z",
+                  "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                  "languageCode": "en",
+                  "extraMetadata": null,
+                  "conversationId": "f47i3aj9knugcc0n0q9boss8",
+                  "sequenceNumber": 4206
+                }
+              ],
+              "personId": "e9c4dp9pudvvzhqz2rqvz842",
+              "createdAt": "2025-08-20T07:26:46.446Z",
+              "startedAt": "2025-08-20T07:27:03.161Z",
+              "updatedAt": "2025-08-20T07:28:33.486Z",
+              "completedAt": "2025-08-20T07:28:33.486Z",
+              "recordAudio": true,
+              "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+              "conversation": {
+                "id": "f47i3aj9knugcc0n0q9boss8",
+                "name": "+12672883315",
+                "isDemo": false,
+                "personId": "e9c4dp9pudvvzhqz2rqvz842",
+                "createdAt": "2025-08-20T07:26:46.437Z",
+                "updatedAt": "2025-08-20T07:28:33.490Z",
+                "archivedAt": null,
+                "archivedBy": null,
+                "workspaceId": "swiyqrgyvq844ava0sqzjbd0",
+                "lastViewedAt": null,
+                "lastViewedBy": null,
+                "lastSessionEndedAt": "2025-08-20T07:28:33.489Z"
+              },
+              "completedMeta": {
+                "traceId": "68a578ba8f547a2df8f60a62540341ab"
+              },
+              "agentVersionId": "kexeocvkw1p4koqjls6332fn",
+              "conversationId": "f47i3aj9knugcc0n0q9boss8",
+              "lastHeartbeatAt": "2025-08-20T07:28:31.008Z"
+            }
+          },
+          "webhookUrl": "https://alcamine.app.n8n.cloud/webhook/3b654f5e-91c2-4267-b0d3-1a43b429bb05",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a person",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a person": {
+      "main": [
+        [
+          {
+            "node": "Create a note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "361d6468-16f2-4632-bb10-b8bd1e6fe2e9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bb9e7c282a66bb009c2ea53a442d94d15e98c7afea8a93df506896b8eed5e068"
+  },
+  "id": "ZbuHEKllSswQhbfS",
+  "tags": []
+}
